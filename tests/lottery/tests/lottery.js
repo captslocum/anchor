@@ -35,37 +35,52 @@ describe('lottery', () => {
   //   console.log("Your transaction signature", tx);
   // });
 
-  it("Can tranfer lamports", async () => {
+  it("Players can buy tickets and raffle can start", async () => {
     const program = anchor.workspace.Lottery;
 
-    let from = anchor.web3.Keypair.generate();
-    let to = anchor.web3.Keypair.generate();
+    let player1 = anchor.web3.Keypair.generate();
+    let player2 = anchor.web3.Keypair.generate();
+    let lottery = anchor.web3.Keypair.generate();
 
     let startingAmount = 200000000000;
-    let transferAmount = 123
+    let ticketPrice = 123
 
 
     await provider.connection.confirmTransaction(
-      await provider.connection.requestAirdrop(from.publicKey, startingAmount)
+      await provider.connection.requestAirdrop(player1.publicKey, startingAmount)
       , "confirmed");
     await provider.connection.confirmTransaction(
-      await provider.connection.requestAirdrop(to.publicKey, startingAmount)
+      await provider.connection.requestAirdrop(player2.publicKey, startingAmount)
       , "confirmed");
 
-
-    await program.rpc.buyTicket(new anchor.BN(transferAmount), {
+      
+    await program.rpc.initialize({
       accounts: {
-        from: from.publicKey,
-        to: to.publicKey,
+        lottery: lottery.publicKey,
         systemProgram: anchor.web3.SystemProgram.programId
-      },
-      signers: [from]
+      }
     });
 
-    const fromAccount = await provider.connection.getAccountInfo(from.publicKey);
-    const toAccount = await provider.connection.getAccountInfo(to.publicKey);
+    await program.rpc.buyTicket(new anchor.BN(ticketPrice), {
+      accounts: {
+        buyer: player1.publicKey,
+        lottery: lottery.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId
+      }
+    });
+    
+    await program.rpc.buyTicket(new anchor.BN(ticketPrice), {
+      accounts: {
+        buyer: player2.publicKey,
+        lottery: lottery.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId
+      }
+    });
 
-    assert.equal(fromAccount.lamports, startingAmount - transferAmount);
-    assert.equal(toAccount.lamports, transferAmount + startingAmount);
+    const player1Account = await provider.connection.getAccountInfo(player1.publicKey);
+    const player2Account = await provider.connection.getAccountInfo(player2.publicKey);
+
+    assert.equal(player1Account.lamports, startingAmount - ticketPrice);
+    assert.equal(player2Account.lamports, startingAmount + 2 * ticketPrice);
   });
 });

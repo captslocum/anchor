@@ -40,19 +40,19 @@ pub mod lottery {
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     // Check's token vault.
-    #[account(mut, constraint = &vault.owner == check_signer.key)]
-    vault: Account<'info, TokenAccount>,
+    #[account(mut)]
+    vault: AccountInfo<'info>,
     // Program derived address for the check.
     check_signer: AccountInfo<'info>,
     // Token account the check is made from.
-    #[account(mut, has_one = owner)]
-    from: Account<'info, TokenAccount>,
-    // Token account the check is made to.
-    #[account(constraint = from.mint == to.mint)]
-    to: Account<'info, TokenAccount>,
-    // Owner of the `from` token account.
-    owner: AccountInfo<'info>,
-    token_program: AccountInfo<'info>,
+    // #[account(mut, has_one = owner)]
+    // from: Account<'info, TokenAccount>,
+    // // Token account the check is made to.
+    // #[account(constraint = from.mint == to.mint)]
+    // to: Account<'info, TokenAccount>,
+    // // Owner of the `from` token account.
+    // owner: AccountInfo<'info>,
+    // token_program: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
