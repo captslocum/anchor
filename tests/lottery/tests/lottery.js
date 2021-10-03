@@ -3,47 +3,57 @@ const assert = require("assert");
 
 describe('lottery', () => {
 
-    // Use a local provider.
+  // Use a local provider.
   const provider = anchor.Provider.local();
 
   // Configure the client to use the local cluster.
   anchor.setProvider(provider);
 
-  // it('Is initialized!', async () => {
-  //   // Add your test here.
-  //   const program = anchor.workspace.Lottery;
-  //   const tx = await program.rpc.initialize();
-  //   await program.rpc.createCheck(new anchor.BN(100), "Hello world", nonce, {
-  //     accounts: {
-  //       vault: vault.publicKey,
-  //       from: god,
-  //       to: receiver,
-  //       owner: program.provider.wallet.publicKey,
-  //       rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-  //     },
-  //     signers: [check, vault],
-  //     instructions: [
-  //       await program.account.check.createInstruction(check, 300),
-  //       ...(await serumCmn.createTokenAccountInstrs(
-  //         program.provider,
-  //         vault.publicKey,
-  //         mint,
-  //         checkSigner
-  //       )),
-  //     ],
-  //   });
-  //   console.log("Your transaction signature", tx);
-  // });
+  const program = anchor.workspace.Lottery;
+  const lotteryID = anchor.web3.Keypair.generate();
 
-  it("Players can buy tickets and raffle can start", async () => {
+  let lottery, lotteryBump;
+  const ticketAmount = 2
+
+  before(async () => {
+    const [_lottery, _lotteryBump] = await anchor.web3.PublicKey.findProgramAddress(
+      [lotteryID.publicKey.toBuffer()],
+      program.programId
+    );
+    lottery = _lottery;
+    lotteryBump = _lotteryBump;
+
+    await program.rpc.initialize(
+      new anchor.BN(lotteryBump),
+      {
+        accounts: {
+          payer: provider.wallet.payer.publicKey,
+          lotteryId: lotteryID.publicKey,
+          lottery: lottery,
+          systemProgram: anchor.web3.SystemProgram.programId
+        },
+        signers: [lotteryID]
+      }
+    );
+
+  });
+
+
+  it('Is initialized!', async () => {
+    const lotteryAccount = await program.account.lottery.fetch(lottery);
+    assert.equal(lotteryAccount.ticketsRemaining, ticketAmount);
+    const lotteryAccountInfo = await provider.connection.getAccountInfo(lottery);
+    console.log(lotteryAccountInfo.lamports)
+  });
+
+  it("Players can buy tickets and raffle starts when last ticket sold", async () => {
     const program = anchor.workspace.Lottery;
 
     let player1 = anchor.web3.Keypair.generate();
     let player2 = anchor.web3.Keypair.generate();
-    let lottery = anchor.web3.Keypair.generate();
 
     let startingAmount = 200000000000;
-    let ticketPrice = 123
+    let ticketPrice = 50; 
 
 
     await provider.connection.confirmTransaction(
@@ -53,28 +63,35 @@ describe('lottery', () => {
       await provider.connection.requestAirdrop(player2.publicKey, startingAmount)
       , "confirmed");
 
-      
-    await program.rpc.initialize({
+    await program.rpc.buyTicket({
       accounts: {
-        lottery: lottery.publicKey,
+        from: player1.publicKey,
+        to: lottery,
         systemProgram: anchor.web3.SystemProgram.programId
-      }
+      },
+      signers: [player1]
     });
 
-    await program.rpc.buyTicket(new anchor.BN(ticketPrice), {
+    await program.rpc.buyTicket({
       accounts: {
-        buyer: player1.publicKey,
-        lottery: lottery.publicKey,
+        from: player2.publicKey,
+        to: lottery,
         systemProgram: anchor.web3.SystemProgram.programId
-      }
+      },
+      signers: [player2]
     });
-    
-    await program.rpc.buyTicket(new anchor.BN(ticketPrice), {
+
+    const lotteryAccountInfo = await provider.connection.getAccountInfo(lottery);
+    console.log(lotteryAccountInfo.lamports)
+
+    await program.rpc.claimPrize({
       accounts: {
-        buyer: player2.publicKey,
-        lottery: lottery.publicKey,
+        claimer: player2.publicKey,
+        lottery: lottery,
+        lotteryId: lotteryID.publicKey,
         systemProgram: anchor.web3.SystemProgram.programId
-      }
+      },
+      signers: [player2]
     });
 
     const player1Account = await provider.connection.getAccountInfo(player1.publicKey);
