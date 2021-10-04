@@ -17,23 +17,23 @@ pub mod lottery {
         Ok(())
     }
 
-    #[access_control(tickets_left(&ctx.accounts.to))]
+    #[access_control(tickets_left(&ctx.accounts.lottery))]
     pub fn buy_ticket(ctx: Context<BuyTicket>) -> ProgramResult {
         let ix = system_instruction::transfer(
-            ctx.accounts.from.key,
-            ctx.accounts.to.to_account_info().key,
+            ctx.accounts.buyer.key,
+            ctx.accounts.lottery.to_account_info().key,
             TICKET_PRICE,
         );
         invoke(
             &ix,
             &[
-                ctx.accounts.from.to_account_info(),
-                ctx.accounts.to.to_account_info(),
+                ctx.accounts.buyer.to_account_info(),
+                ctx.accounts.lottery.to_account_info(),
             ],
         )?;
-        let lottery = &mut ctx.accounts.to;
+        let lottery = &mut ctx.accounts.lottery;
         let index = lottery.tickets_remaining - 1;
-        lottery.entrants[index as usize] = *ctx.accounts.from.key;
+        lottery.entrants[index as usize] = *ctx.accounts.buyer.key;
         lottery.tickets_remaining -= 1;
 
         if lottery.tickets_remaining == 0 {
@@ -89,9 +89,9 @@ pub struct Initialize<'info> {
 #[derive(Accounts)]
 pub struct BuyTicket<'info> {
     #[account(mut)]
-    from: Signer<'info>,
+    buyer: Signer<'info>,
     #[account(mut)]
-    to: Account<'info, Lottery>,
+    lottery: Account<'info, Lottery>,
     system_program: Program<'info, System>,
 }
 
