@@ -43,7 +43,6 @@ describe('lottery', () => {
     const lotteryAccount = await program.account.lottery.fetch(lottery);
     assert.equal(lotteryAccount.ticketsRemaining, ticketAmount);
     const lotteryAccountInfo = await provider.connection.getAccountInfo(lottery);
-    console.log(lotteryAccountInfo.lamports) // ?? how is this non-zero
   });
 
   it("Players can buy tickets and raffle starts when last ticket sold", async () => {
@@ -81,27 +80,22 @@ describe('lottery', () => {
       signers: [player2]
     });
 
-    const lotteryAccountInfo = await provider.connection.getAccountInfo(lottery);
     const player1Account = await provider.connection.getAccountInfo(player1.publicKey);
-    const player2Account = await provider.connection.getAccountInfo(player2.publicKey);
+    let player2Account = await provider.connection.getAccountInfo(player2.publicKey);
 
     assert.equal(player1Account.lamports, startingAmount - ticketPrice);
     assert.equal(player2Account.lamports, startingAmount - ticketPrice);
-    // assert.equal(lotteryAccountInfo.lamports, 2 * ticketPrice);
-  });
 
-  it.skip("The winner can claim their prize", async () => {
     await program.rpc.claimPrize({
       accounts: {
         claimer: player2.publicKey,
         lottery: lottery,
-        lotteryId: lotteryID.publicKey,
         systemProgram: anchor.web3.SystemProgram.programId
       },
       signers: [player2]
     });
 
-    const player2Account = await provider.connection.getAccountInfo(player2.publicKey);
-    assert.equal(player2Account.lamports, startingAmount + 2 * ticketPrice);
+    player2Account = await provider.connection.getAccountInfo(player2.publicKey);
+    assert.equal(player2Account.lamports, startingAmount + ticketPrice);
   });
 });
